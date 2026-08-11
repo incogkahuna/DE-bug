@@ -1,0 +1,282 @@
+/* ═════════════════════════════════════════════════════════════════════════════
+   DE-bug — theme tokens + component classes.
+   Extracted from Balance (Orbital Studios). Plain CSS on purpose — no @apply,
+   no Tailwind directives — so it works no matter how your build processes CSS.
+
+   Import once, after your own base styles:
+     import './de-bug/styles/de-bug.css'
+
+   Theming: light is the default; add class="dark" on <html> (Tailwind
+   darkMode:'class' convention) for the dark palette. Every value routes
+   through a CSS variable, so overriding the look = redefining variables in
+   your own stylesheet after this import.
+
+   If your app already defines these class names (.input, .btn-primary,
+   .card-elevated, … — e.g. Balance itself), skip this import entirely.
+
+   Balance pairs this with the Space Mono font for .hud-label/.font-telemetry.
+   Optional — the monospace fallback is fine. To match exactly, add:
+   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Brand constants (both themes) ─────────────────────────────────────────── */
+:root {
+  --brand-a:    #55c9ef;
+  --brand-b:    #2a7bbb;
+  --brand-grad: linear-gradient(180deg, #55c9ef 0%, #2a7bbb 100%);
+}
+
+/* ── Light mode (default / :root) — clean, blue-tinted neutrals ────────────── */
+:root {
+  --orbital-bg:         #f3f5f9;   /* page background    */
+  --orbital-surface:    #ffffff;   /* card / panel       */
+  --orbital-panel:      #f7f9fc;   /* elevated surfaces  */
+  --orbital-border:     #dfe4ee;   /* 1px separators     */
+  --orbital-chrome:     #bcc4d6;   /* active/hover edges */
+  --orbital-muted:      #eaeef5;   /* recessed / inset   */
+  --orbital-text:       #0e1420;   /* primary text       */
+  --orbital-subtle:     #55607a;   /* secondary text     */
+  --orbital-dim:        #94a0b8;   /* placeholder        */
+
+  /* Accent (brand blue family) */
+  --accent:        #2a7bbb;
+  --accent-bright: #3ba8e0;
+  --accent-soft:   rgba(42,123,187,0.10);
+  --accent-ring:   rgba(59,168,224,0.35);
+
+  /* Input fields */
+  --input-bg:           #f7f9fc;
+  --input-border:       #ccd4e2;
+  --input-placeholder:  #94a0b8;
+
+  /* Ghost / secondary button */
+  --btn-secondary-bg:     rgba(14,20,32,0.04);
+  --btn-secondary-hover:  rgba(14,20,32,0.07);
+  --btn-secondary-border: #ccd4e2;
+  --btn-ghost-hover:      rgba(14,20,32,0.05);
+
+  /* Card treatment */
+  --card-bg: #ffffff;
+}
+
+/* ── Dark mode — deep space navy ───────────────────────────────────────────── */
+.dark {
+  --orbital-bg:         #070a12;
+  --orbital-surface:    #0d1220;
+  --orbital-panel:      #111828;
+  --orbital-border:     #1b2437;
+  --orbital-chrome:     #2b3852;
+  --orbital-muted:      #0a0e19;
+  --orbital-text:       #dbe3f0;
+  --orbital-subtle:     #77839c;
+  --orbital-dim:        #3a4358;
+
+  --accent:        #3ba8e0;
+  --accent-bright: #55c9ef;
+  --accent-soft:   rgba(85,201,239,0.10);
+  --accent-ring:   rgba(85,201,239,0.30);
+
+  --input-bg:           #080c16;
+  --input-border:       #1e2839;
+  --input-placeholder:  #46506a;
+
+  --btn-secondary-bg:     rgba(133,178,255,0.05);
+  --btn-secondary-hover:  rgba(133,178,255,0.09);
+  --btn-secondary-border: #24304a;
+  --btn-ghost-hover:      rgba(133,178,255,0.05);
+
+  /* Card treatment — translucent glass */
+  --card-bg: rgba(13,18,32,0.72);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPONENT CLASSES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Card ──────────────────────────────────────────────────────────────────── */
+.card-elevated {
+  border: 1px solid var(--orbital-chrome);
+  background: var(--card-bg);
+}
+.dark .card-elevated {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(133,178,255,0.07), 0 12px 40px rgba(0,0,0,0.35);
+}
+
+/* ── Buttons — primary carries the brand gradient ──────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease;
+  background: linear-gradient(180deg, #3ba8e0 0%, #2a7bbb 100%);
+  border: 1px solid rgba(85,201,239,0.45);
+  color: #f2faff;
+  box-shadow: 0 1px 12px rgba(59,168,224,0.18);
+  cursor: pointer;
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4cbcee 0%, #2f8bd2 100%);
+  box-shadow: 0 2px 18px rgba(59,168,224,0.32);
+}
+.btn-primary:active:not(:disabled) {
+  background: linear-gradient(180deg, #2f95cd 0%, #256da6 100%);
+  box-shadow: 0 1px 8px rgba(59,168,224,0.2);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--orbital-text);
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background: var(--btn-secondary-hover);
+  border-color: var(--orbital-chrome);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--orbital-subtle);
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn-ghost:hover {
+  color: var(--orbital-text);
+  background: var(--btn-ghost-hover);
+  border-color: var(--btn-secondary-border);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+  background: #7f1d1d;
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #fecaca;
+  cursor: pointer;
+}
+.btn-danger:hover { background: #991b1b; }
+
+/* ── Inputs ────────────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--orbital-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  outline: none;
+}
+.input::placeholder { color: var(--input-placeholder); }
+.input:focus {
+  border-color: var(--accent-ring);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+  color: var(--orbital-subtle);
+  letter-spacing: 0.03em;
+}
+
+/* ── HUD label — monospace telemetry with a brand-gradient tick ────────────── */
+.hud-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  color: var(--orbital-subtle);
+  font-family: 'Space Mono', ui-monospace, monospace;
+  letter-spacing: 0.1em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hud-label::before {
+  content: '';
+  width: 3px;
+  height: 11px;
+  flex-shrink: 0;
+  background: var(--brand-grad);
+  border-radius: 1px;
+}
+
+/* Monospace for actual data values: timecodes, counts, codes */
+.font-telemetry { font-family: 'Space Mono', ui-monospace, monospace; }
+
+/* ── Animations ────────────────────────────────────────────────────────────── */
+@keyframes hud-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-hud-in { animation: hud-in 0.15s ease-out forwards; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-toast-in { animation: toast-in 0.18s ease-out; }
+
+/* ── Touch ergonomics — scoped to kit classes only, no global side effects ──
+   Apple HIG minimum tappable area is 44×44pt. Below the desktop breakpoint the
+   kit's control primitives guarantee that height. And iOS Safari zooms in on
+   focus when input font-size < 16px, so kit inputs bump to 16px on phones. */
+@media (max-width: 1023px) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-ghost,
+  .input {
+    min-height: 44px;
+  }
+}
+@media (max-width: 767px) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .input { font-size: 16px; }
+}
