@@ -44,7 +44,7 @@ function defaultPos() {
 }
 
 export function FeedbackWidget() {
-  const { addFeedbackItem, widgetHidden, setWidgetHidden, storageKey } = useFeedback()
+  const { addFeedbackItem, widgetHidden, setWidgetHidden, storageKey, canFlagForAgent } = useFeedback()
   const POS_KEY = `${storageKey}_widget_pos_v1`
   const toast = useToast()
   const [open, setOpen] = useState(false)
@@ -55,6 +55,7 @@ export function FeedbackWidget() {
   const [description, setDescription] = useState('')
   const [context, setContext] = useState('')
   const [screenshot, setScreenshot] = useState('')
+  const [agentPrompt, setAgentPrompt] = useState(false)
   const panelRef = useRef(null)
   const formRef = useRef(null)
 
@@ -170,12 +171,14 @@ export function FeedbackWidget() {
       description: description.trim(),
       context: context.trim(),
       screenshot,
+      agentPrompt: canFlagForAgent && agentPrompt,
     }))
-    toast.success('Feedback sent — thank you.')
+    toast.success(canFlagForAgent && agentPrompt ? 'Sent to the agent queue — thank you.' : 'Feedback sent — thank you.')
     setTitle('')
     setDescription('')
     setContext('')
     setScreenshot('')
+    setAgentPrompt(false)
     setOpen(false)
   }
 
@@ -287,6 +290,14 @@ export function FeedbackWidget() {
           />
 
           <ScreenshotAttach value={screenshot} onChange={setScreenshot} pasteScope={formRef} compact />
+
+          {/* Only for reporters the host app trusts (canFlagForAgent) */}
+          {canFlagForAgent && (
+            <label className="flex items-center gap-2 text-xs text-orbital-subtle cursor-pointer select-none">
+              <input type="checkbox" checked={agentPrompt} onChange={e => setAgentPrompt(e.target.checked)} />
+              🤖 Send to an agent as a prompt
+            </label>
+          )}
 
           <button onClick={send} disabled={!title.trim()} className="btn-primary w-full disabled:opacity-40">
             <Send size={13} /> Send

@@ -20,6 +20,12 @@ import { FeedbackWidget } from './FeedbackWidget.jsx'
 //   user       { id, name } of the signed-in user (optional)
 //   canTriage  can change status / resolution notes (default false)
 //   canDelete  can delete reports (default: same as canTriage)
+//   canFlagForAgent  may flag a report "🤖 Send to an agent as a prompt"
+//              (default false). A boolean, or a function of the current user:
+//              `(user) => boolean`. Only a trusted reporter should get it: an
+//              agent watcher acts on flagged reports, and the report text is
+//              untrusted input. This is the UI gate; the agent_prompt migration
+//              adds the database gate (see README → "Agent watch").
 //   appInfo    { name, description } — describes YOUR app in exported prompts
 //   widget     mount the floating report widget on every page (default true).
 //              Set false to opt out app-wide, or place <FeedbackWidget />
@@ -39,6 +45,7 @@ function FeedbackCore({
   user = null,
   canTriage = false,
   canDelete,
+  canFlagForAgent = false,
   appInfo = null,
   widget = true,
   storageKey = 'bugs_ideas',
@@ -67,6 +74,14 @@ function FeedbackCore({
   // dep (callers pass it fresh each render).
   const userRef = useRef(user)
   useEffect(() => { userRef.current = user }, [user])
+
+  // Who may flag a report for an agent: the host app decides (boolean, or a
+  // function of the current user). Anything but a true answer means no.
+  const mayFlagForAgent = typeof canFlagForAgent === 'function'
+    ? canFlagForAgent(user) === true
+    : canFlagForAgent === true
+  const mayFlagRef = useRef(mayFlagForAgent)
+  useEffect(() => { mayFlagRef.current = mayFlagForAgent }, [mayFlagForAgent])
 
   // ─── Hydrate from Supabase + subscribe to realtime ─────────────────────────
   // Re-runs when the user signs in (user?.id), so a list that failed under RLS
@@ -97,6 +112,7 @@ function FeedbackCore({
                 submittedBy: item.submittedBy || userRef.current?.id || null,
                 submittedByName: item.submittedByName || '',
                 resolutionNote: item.resolutionNote || '',
+                agentPrompt: item.agentPrompt === true,
               })
               setFeedbackItemsState(prev => prev.some(f => f.id === created.id) ? prev : [created, ...prev])
             } catch (err) {
@@ -145,6 +161,8 @@ function FeedbackCore({
   const addFeedbackItem = useCallback((item) => {
     const full = {
       ...item,
+      // only a reporter the app trusts can flag a report for an agent
+      agentPrompt: item.agentPrompt === true && mayFlagRef.current,
       submittedBy: item.submittedBy || userRef.current?.id || '',
       submittedByName: item.submittedByName || userRef.current?.name || 'Anonymous',
       submittedAt: item.submittedAt || new Date().toISOString(),
@@ -159,6 +177,12 @@ function FeedbackCore({
   }, [store, toast])
 
   const updateFeedbackItem = useCallback((id, patch) => {
+    // setting the agent flag needs the same trust as filing with it; clearing it doesn't
+    if (patch.agentPrompt === true && !mayFlagRef.current) {
+      const { agentPrompt: _dropped, ...rest } = patch
+      patch = rest
+      if (Object.keys(patch).length === 0) return
+    }
     let prevItem = null
     setFeedbackItemsState(prev => prev.map(f => {
       if (f.id !== id) return f
@@ -202,6 +226,7 @@ function FeedbackCore({
     user,
     canTriage,
     canDelete: canDelete ?? canTriage,
+    canFlagForAgent: mayFlagForAgent,
     appInfo,
     storageKey,
     // Items + CRUD

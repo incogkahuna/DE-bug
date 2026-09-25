@@ -50,7 +50,7 @@ const STATUS_FILTERS = ['all', ...Object.values(FEEDBACK_STATUS)]
 // ────────────────────────────────────────────────────────────────────────────
 export function FeedbackPage({ promptBarOffsetClassName = '' }) {
   const {
-    user, canTriage, canDelete, appInfo,
+    user, canTriage, canDelete, canFlagForAgent, appInfo,
     feedbackItems, addFeedbackItem, updateFeedbackItem, deleteFeedbackItem,
     widgetEnabled, widgetHidden, setWidgetHidden,
   } = useFeedback()
@@ -60,6 +60,8 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
   const [showSubmit, setShowSubmit]   = useState(false)
   const [kindFilter, setKindFilter]   = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  // "For the agent": only reports flagged as prompts for a coding agent
+  const [agentOnly, setAgentOnly]     = useState(false)
   const [expandedId, setExpandedId]   = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)   // feedback item pending delete confirmation
   // Prompt list — a curated "cart" of reports built up across filters. Persists
@@ -75,9 +77,10 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
       .filter(f => statusFilter === 'all'
         ? !CLOSED_STATUSES.includes(f.status)
         : f.status === statusFilter)
+      .filter(f => !agentOnly || f.agentPrompt)
       .sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedbackItems, kindFilter, statusFilter])
+  }, [feedbackItems, kindFilter, statusFilter, agentOnly])
 
   // The selected reports, newest-first — copied ALL AT ONCE regardless of the
   // current filter (they were curated deliberately).
@@ -121,7 +124,8 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
   // Would this item still show under the active filters?
   const matchesView = (it) =>
     (kindFilter === 'all' || it.kind === kindFilter) &&
-    (statusFilter === 'all' ? !CLOSED_STATUSES.includes(it.status) : it.status === statusFilter)
+    (statusFilter === 'all' ? !CLOSED_STATUSES.includes(it.status) : it.status === statusFilter) &&
+    (!agentOnly || it.agentPrompt)
 
   // Single-item status change (from the row's inline pill). If the new status
   // drops the item out of the current view (e.g. → Shipped while on "All"),
@@ -142,10 +146,11 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
     const bugs     = open.filter(f => f.kind === FEEDBACK_KIND.BUG).length
     const ideas    = open.filter(f => f.kind === FEEDBACK_KIND.IDEA).length
     const notes    = open.filter(f => f.kind === FEEDBACK_KIND.NOTE).length
+    const agent    = open.filter(f => f.agentPrompt).length
     const byStatus = Object.fromEntries(
       Object.values(FEEDBACK_STATUS).map(s => [s, feedbackItems.filter(f => f.status === s).length])
     )
-    return { all, bugs, ideas, notes, byStatus }
+    return { all, bugs, ideas, notes, agent, byStatus }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedbackItems])
 
@@ -242,6 +247,21 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
               })}
             </div>
           </div>
+          {/* For the agent — only reports flagged as prompts for a coding agent */}
+          <button
+            onClick={() => setAgentOnly(on => !on)}
+            aria-pressed={agentOnly}
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 min-h-[44px] lg:min-h-0 lg:px-2 lg:py-0.5 text-xs font-medium transition-colors border"
+            style={{
+              color:       agentOnly ? '#a78bfa' : 'var(--orbital-subtle)',
+              background:  agentOnly ? 'rgba(167,139,250,0.13)' : 'transparent',
+              borderColor: agentOnly ? 'rgba(167,139,250,0.55)' : 'var(--orbital-border)',
+            }}
+            title="Show only reports flagged as prompts for a coding agent"
+          >
+            🤖 For the agent
+            <span className="font-mono text-[10px] opacity-60">{counts.agent}</span>
+          </button>
           {/* Add-all toggle — bulk-add the current filter to the prompt list */}
           {filtered.length > 0 && (
             <button
@@ -278,6 +298,7 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
                 isAdmin={isAdmin}
                 canDelete={canDelete}
                 canEdit={isAdmin || (!!user?.id && item.submittedBy === user.id)}
+                canFlagForAgent={canFlagForAgent}
                 isSelected={selectedIds.has(item.id)}
                 onToggleSelect={() => toggleSelect(item.id)}
                 isExpanded={expandedId === item.id}
@@ -340,6 +361,7 @@ export function FeedbackPage({ promptBarOffsetClassName = '' }) {
         <SubmitFeedbackModal
           onSubmit={(item) => { addFeedbackItem(item); setShowSubmit(false) }}
           onClose={() => setShowSubmit(false)}
+          canFlagForAgent={canFlagForAgent}
         />
       )}
 
@@ -383,7 +405,7 @@ function StatusPillSelect({ status, onChange }) {
 }
 
 // ── FeedbackRow ─────────────────────────────────────────────────────────────
-function FeedbackRow({ item, isAdmin, canDelete, canEdit, isSelected, onToggleSelect, isExpanded, onToggleExpand, onUpdateStatus, onUpdateResolution, onUpdateItem, onDelete }) {
+function FeedbackRow({ item, isAdmin, canDelete, canEdit, canFlagForAgent, isSelected, onToggleSelect, isExpanded, onToggleExpand, onUpdateStatus, onUpdateResolution, onUpdateItem, onDelete }) {
   const toast = useToast()
   const kindMeta   = KIND_META[item.kind] || KIND_META[FEEDBACK_KIND.IDEA]
   const statusMeta = STATUS_META[item.status] || STATUS_META[FEEDBACK_STATUS.NEW]
@@ -411,6 +433,7 @@ function FeedbackRow({ item, isAdmin, canDelete, canEdit, isSelected, onToggleSe
       description: item.description || '',
       context: item.context || '',
       screenshot: item.screenshot || '',
+      agentPrompt: item.agentPrompt === true,
     })
     setEditingItem(true)
   }
@@ -421,6 +444,8 @@ function FeedbackRow({ item, isAdmin, canDelete, canEdit, isSelected, onToggleSe
       description: draft.description.trim(),
       context: draft.context.trim(),
       screenshot: draft.screenshot,
+      // the flag can be changed only by someone the app lets flag
+      ...(canFlagForAgent ? { agentPrompt: draft.agentPrompt } : {}),
     })
     setEditingItem(false)
     toast.success('Report updated')
@@ -470,6 +495,15 @@ function FeedbackRow({ item, isAdmin, canDelete, canEdit, isSelected, onToggleSe
               <span>{item.submittedByName || 'Anonymous'}</span>
               <span className="text-orbital-dim">·</span>
               <span className="font-mono">{submittedDate}</span>
+              {item.agentPrompt && (
+                <span
+                  className="inline-flex items-center px-1.5 py-px text-[10px] font-medium"
+                  style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.13)', border: '1px solid rgba(167,139,250,0.45)' }}
+                  title="Flagged as a prompt for a coding agent"
+                >
+                  🤖 Agent
+                </span>
+              )}
             </p>
           </div>
         </button>
@@ -519,6 +553,13 @@ function FeedbackRow({ item, isAdmin, canDelete, canEdit, isSelected, onToggleSe
                   pasteScope={editFormRef}
                 />
               </div>
+              {canFlagForAgent && (
+                <label className="flex items-center gap-2 text-xs text-orbital-subtle cursor-pointer select-none">
+                  <input type="checkbox" checked={draft.agentPrompt}
+                    onChange={e => setDraft(d => ({ ...d, agentPrompt: e.target.checked }))} />
+                  🤖 Send to an agent as a prompt
+                </label>
+              )}
               <div className="flex gap-2">
                 <button onClick={saveEdit} className="btn-primary text-xs px-3 py-1.5">Save changes</button>
                 <button onClick={() => setEditingItem(false)} className="btn-ghost text-xs px-3 py-1.5">Cancel</button>
@@ -647,12 +688,13 @@ function FeedbackRow({ item, isAdmin, canDelete, canEdit, isSelected, onToggleSe
 }
 
 // ── Submit modal ─────────────────────────────────────────────────────────────
-function SubmitFeedbackModal({ onSubmit, onClose }) {
+function SubmitFeedbackModal({ onSubmit, onClose, canFlagForAgent = false }) {
   const [kind, setKind]               = useState(FEEDBACK_KIND.IDEA)
   const [title, setTitle]             = useState('')
   const [description, setDescription] = useState('')
   const [context, setContext]         = useState('')
   const [screenshot, setScreenshot]   = useState('')
+  const [agentPrompt, setAgentPrompt] = useState(false)
   const formRef = useRef(null)
 
   const canSubmit = title.trim().length > 0
@@ -736,12 +778,21 @@ function SubmitFeedbackModal({ onSubmit, onClose }) {
           <ScreenshotAttach value={screenshot} onChange={setScreenshot} pasteScope={formRef} />
         </div>
 
+        {/* Only for reporters the host app trusts (canFlagForAgent) */}
+        {canFlagForAgent && (
+          <label className="flex items-center gap-2 text-sm text-orbital-subtle cursor-pointer select-none">
+            <input type="checkbox" checked={agentPrompt} onChange={e => setAgentPrompt(e.target.checked)} />
+            🤖 Send to an agent as a prompt
+          </label>
+        )}
+
         {/* Actions */}
         <div className="flex gap-3 pt-2">
           <button
             onClick={() => onSubmit(createFeedbackItem({
               kind, title: title.trim(), description: description.trim(),
               context: context.trim(), screenshot,
+              agentPrompt: canFlagForAgent && agentPrompt,
             }))}
             disabled={!canSubmit}
             className="btn-primary flex-1 justify-center"

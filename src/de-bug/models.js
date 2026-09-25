@@ -36,6 +36,7 @@ export function createFeedbackItem(overrides = {}) {
     submittedByName: '',     // snapshot at submit time (users can't always be looked up later)
     submittedAt: new Date().toISOString(),
     resolutionNote: '',      // admin-set when status moves to Shipped / Won't Fix
+    agentPrompt: false,      // flagged as a prompt for a coding agent (only trusted reporters — see canFlagForAgent)
     ...overrides,
   }
 }
