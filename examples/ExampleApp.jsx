@@ -14,7 +14,7 @@ const supabase = createClient(
 )
 
 // In a real app this comes from your auth context.
-const currentUser = { id: 'a0000000-0000-0000-0000-000000000001', name: 'Danny' }
+const currentUser = { id: 'a0000000-0000-0000-0000-000000000001', name: 'Danny', role: 'admin' }
 
 export default function ExampleApp() {
   return (
@@ -23,6 +23,9 @@ export default function ExampleApp() {
         supabase={supabase}                 // omit for localStorage-only mode
         user={currentUser}
         canTriage={true}                    // gate on your app's roles
+        // who may tick "🤖 Send to an agent as a prompt" — trusted reporters only
+        // (a boolean, or a function of the user). Default false. See README → Agent watch.
+        canFlagForAgent={(user) => user?.role === 'admin'}
         appInfo={{
           name: 'MyApp',
           description: 'a React 18 + Vite + Tailwind + Supabase app (pages in `src/pages/`, data layer in `src/lib/`)',

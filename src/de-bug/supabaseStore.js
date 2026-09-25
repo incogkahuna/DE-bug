@@ -5,7 +5,7 @@
 //
 // Item shape (camelCase, see models.js):
 //   { id, kind, title, description, context, screenshot, status,
-//     submittedBy, submittedByName, resolutionNote, submittedAt, updatedAt }
+//     submittedBy, submittedByName, resolutionNote, agentPrompt, submittedAt, updatedAt }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const asUuidOrNull = (v) =>
@@ -23,12 +23,13 @@ function rowToItem(r) {
     submittedBy:     r.submitted_by,
     submittedByName: r.submitted_by_name,
     resolutionNote:  r.resolution_note,
+    agentPrompt:     r.agent_prompt === true,   // false before the agent_prompt migration
     submittedAt:     r.created_at,
     updatedAt:       r.updated_at,
   }
 }
 
-function itemToRow(i) {
+function itemToRow(i, { update = false } = {}) {
   const row = {}
   if (i.id              !== undefined) row.id                = i.id
   if (i.kind            !== undefined) row.kind              = i.kind
@@ -43,6 +44,9 @@ function itemToRow(i) {
   // hasn't been run yet. Empty values are omitted rather than sent as ''.
   if (i.context)    row.context    = i.context
   if (i.screenshot) row.screenshot = i.screenshot
+  // Same rule for agent_prompt: a new report sends it only when flagged; an
+  // update sends it whenever the patch names it (so a flag can be cleared).
+  if (i.agentPrompt === true || (update && i.agentPrompt !== undefined)) row.agent_prompt = !!i.agentPrompt
   return row
 }
 
@@ -70,7 +74,7 @@ export function createSupabaseFeedbackStore(supabase, { table = 'feedback_items'
   async function update(id, patch) {
     const { data, error } = await supabase
       .from(table)
-      .update(itemToRow(patch))
+      .update(itemToRow(patch, { update: true }))
       .eq('id', id)
       .select('*')
       .single()
